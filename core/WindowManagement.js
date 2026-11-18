@@ -180,10 +180,21 @@ function dispatches(address, steps) {
   var win = 'window = "address:' + address + '"'
   return steps.map(function(s) {
     switch (s.op) {
+      // The mode is named: "unset" alone leaves a maximized window maximized.
       case "unfullscreen":
-        return { lua: 'hl.dsp.window.fullscreen({ action = "unset", ' + win + " })", classic: ["fullscreenstate", "0 0"] }
+        return { lua: 'hl.dsp.window.fullscreen({ mode = "' + fullscreenMode(s.mode) + '", action = "unset", ' + win + " })", classic: ["fullscreenstate", "0 0"] }
+      case "fullscreen":
+        return {
+          lua: 'hl.dsp.window.fullscreen({ mode = "' + fullscreenMode(s.mode) + '", action = "set", ' + win + " })",
+          classic: ["fullscreenstate", s.mode === 1 ? "1 1" : "2 2"]
+        }
       case "float":
-        return { lua: 'hl.dsp.window.float({ action = "toggle", ' + win + " })", classic: ["togglefloating", "address:" + address] }
+        // Set, never toggled: what `floating` was is stale once fullscreen
+        // ends, where a floating workspace floats the window by itself.
+        return {
+          lua: 'hl.dsp.window.float({ action = "' + (s.on ? "on" : "off") + '", ' + win + " })",
+          classic: [s.on ? "setfloating" : "settiled", "address:" + address]
+        }
       case "resize":
         return {
           lua: "hl.dsp.window.resize({ x = " + s.w + ", y = " + s.h + ", " + win + " })",
@@ -196,6 +207,24 @@ function dispatches(address, steps) {
         }
     }
   })
+}
+
+// Hyprland's `fullscreen` field: 1 is maximized, 2 is fullscreen.
+function fullscreenMode(mode) {
+  return mode === 1 ? "maximized" : "fullscreen"
+}
+
+// Resize, then move. Hyprland resizes about the window's centre and rounds
+// the size up when that puts the corner on a half pixel, which an odd change
+// in size does. A second resize from the placed corner lands exactly. `from`
+// is the window's current size, or null when leaving fullscreen or tiling
+// makes it unknown.
+function placeSteps(steps, rect, from) {
+  var passes = from && (rect.w - from.w) % 2 === 0 && (rect.h - from.h) % 2 === 0 ? 1 : 2
+  for (var i = 0; i < passes; i++) {
+    steps.push({ op: "resize", w: rect.w, h: rect.h })
+    steps.push({ op: "move", x: rect.x, y: rect.y })
+  }
 }
 
 function pair(value) {
@@ -219,17 +248,21 @@ function plan(name, win, monitors, entry, options) {
   var opts = options || {}
   var current = { x: win.at[0], y: win.at[1], w: win.size[0], h: win.size[1] }
   var floating = !!win.floating
-  var fullscreen = !!win.fullscreen
+  var mode = Number(win.fullscreen) || 0
+  var fullscreen = mode > 0
+  var known = floating && !fullscreen ? current : null
   var steps = []
 
   if (cmd.shape === "restore") {
     if (!entry || !entry.restore) return { error: "Nothing to restore" }
     var back = entry.restore
-    if (fullscreen) steps.push({ op: "unfullscreen" })
-    if (floating !== back.floating) steps.push({ op: "float" })
-    if (back.floating) {
-      steps.push({ op: "resize", w: back.w, h: back.h })
-      steps.push({ op: "move", x: back.x, y: back.y })
+    var stays = !!back.fullscreen && back.fullscreen === mode
+    if (fullscreen && !stays) steps.push({ op: "unfullscreen", mode: mode })
+    if (!stays && (fullscreen || floating !== back.floating)) steps.push({ op: "float", on: back.floating })
+    if (back.fullscreen) {
+      if (!stays) steps.push({ op: "fullscreen", mode: back.fullscreen })
+    } else if (back.floating) {
+      placeSteps(steps, back, known)
     }
     return { address: address, rect: back, dispatches: dispatches(address, steps), entry: null }
   }
@@ -249,17 +282,21 @@ function plan(name, win, monitors, entry, options) {
   var rect = target(cmd, area, current, step, opts.windowGap)
   if (!rect || rect.w <= 0 || rect.h <= 0) return { error: "No room on the monitor" }
 
-  if (fullscreen) steps.push({ op: "unfullscreen" })
-  if (!floating) steps.push({ op: "float" })
-  steps.push({ op: "resize", w: rect.w, h: rect.h })
-  steps.push({ op: "move", x: rect.x, y: rect.y })
+  if (fullscreen) steps.push({ op: "unfullscreen", mode: mode })
+  if (fullscreen || !floating) steps.push({ op: "float", on: true })
+  placeSteps(steps, rect, known)
+
+  // A fullscreen window's bounds are the screen's, so Restore returns it to
+  // fullscreen instead of to a floating window that size.
+  var before = { x: current.x, y: current.y, w: current.w, h: current.h, floating: floating }
+  if (fullscreen) before.fullscreen = mode
 
   return {
     address: address,
     rect: rect,
     dispatches: dispatches(address, steps),
     entry: {
-      restore: untouched ? entry.restore : { x: current.x, y: current.y, w: current.w, h: current.h, floating: floating },
+      restore: untouched ? entry.restore : before,
       applied: rect,
       command: name,
       step: step

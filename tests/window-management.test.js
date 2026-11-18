@@ -115,21 +115,39 @@ test("gaps: the screen gap goes all round, the window gap between neighbours", (
 })
 
 test("a tiled window is floated, then sized, then moved, in both spellings", () => {
+  // Its size once floating is unknown, so it is sized and moved twice.
   const p = W.plan("leftHalf", tiled(), monitors, null, {})
   assert.deepEqual(p.dispatches.map((d) => d.lua), [
-    'hl.dsp.window.float({ action = "toggle", window = "address:0xabc" })',
+    'hl.dsp.window.float({ action = "on", window = "address:0xabc" })',
+    'hl.dsp.window.resize({ x = 1280, y = 1400, window = "address:0xabc" })',
+    'hl.dsp.window.move({ x = 0, y = 40, window = "address:0xabc" })',
     'hl.dsp.window.resize({ x = 1280, y = 1400, window = "address:0xabc" })',
     'hl.dsp.window.move({ x = 0, y = 40, window = "address:0xabc" })'
   ])
   assert.deepEqual(p.dispatches.map((d) => d.classic), [
-    ["togglefloating", "address:0xabc"],
+    ["setfloating", "address:0xabc"],
+    ["resizewindowpixel", "exact 1280 1400,address:0xabc"],
+    ["movewindowpixel", "exact 0 40,address:0xabc"],
     ["resizewindowpixel", "exact 1280 1400,address:0xabc"],
     ["movewindowpixel", "exact 0 40,address:0xabc"]
   ])
   const floating = W.plan("leftHalf", tiled({ floating: true }), monitors, null, {})
   assert.equal(floating.dispatches.length, 2)
+  // An odd change in size makes Hyprland round up: the second pass corrects it.
+  const odd = W.plan("leftHalf", tiled({ floating: true, size: [800, 601] }), monitors, null, {})
+  assert.deepEqual(odd.dispatches.map((d) => d.classic[0]),
+    ["resizewindowpixel", "movewindowpixel", "resizewindowpixel", "movewindowpixel"])
+})
+
+test("a fullscreen or maximized window leaves that state by name and is floated", () => {
   const full = W.plan("leftHalf", tiled({ fullscreen: 2 }), monitors, null, {})
-  assert.match(full.dispatches[0].lua, /fullscreen\(\{ action = "unset"/)
+  assert.equal(full.dispatches[0].lua, 'hl.dsp.window.fullscreen({ mode = "fullscreen", action = "unset", window = "address:0xabc" })')
+  const maximized = W.plan("leftHalf", tiled({ fullscreen: 1 }), monitors, null, {})
+  assert.equal(maximized.dispatches[0].lua, 'hl.dsp.window.fullscreen({ mode = "maximized", action = "unset", window = "address:0xabc" })')
+  // Leaving fullscreen can change the float state, so it is set either way.
+  const fullFloating = W.plan("leftHalf", tiled({ fullscreen: 2, floating: true }), monitors, null, {})
+  assert.deepEqual(fullFloating.dispatches.map((d) => d.classic[0]),
+    ["fullscreenstate", "setfloating", "resizewindowpixel", "movewindowpixel", "resizewindowpixel", "movewindowpixel"])
 })
 
 function follow(name, previous) {
@@ -162,7 +180,7 @@ test("Restore returns to the bounds from before the first command", () => {
 
   // It was tiled: Restore only tiles it again.
   const back = follow("restore", p)
-  assert.deepEqual(back.dispatches.map((d) => d.classic[0]), ["togglefloating"])
+  assert.deepEqual(back.dispatches.map((d) => d.classic[0]), ["settiled"])
   assert.equal(back.entry, null)
 
   // It was floating: Restore puts the old bounds back.
@@ -172,6 +190,18 @@ test("Restore returns to the bounds from before the first command", () => {
     ["resizewindowpixel", "exact 800 600,address:0xabc"],
     ["movewindowpixel", "exact 100 140,address:0xabc"]
   ])
+
+  // It was fullscreen: Restore makes it fullscreen again, not a window that size.
+  let full = W.plan("leftHalf", tiled({ fullscreen: 2, floating: true, at: [0, 0], size: [2560, 1440] }), monitors, null, {})
+  assert.equal(full.entry.restore.fullscreen, 2)
+  full = follow("restore", full)
+  assert.deepEqual(full.dispatches.map((d) => d.lua), [
+    'hl.dsp.window.fullscreen({ mode = "fullscreen", action = "set", window = "address:0xabc" })'
+  ])
+  assert.deepEqual(full.dispatches[0].classic, ["fullscreenstate", "2 2"])
+  // Already fullscreen again by hand: nothing to do.
+  const same = W.plan("leftHalf", tiled({ fullscreen: 2 }), monitors, null, {})
+  assert.equal(W.plan("restore", tiled({ fullscreen: 2 }), monitors, same.entry, {}).dispatches.length, 0)
 
   // Moved by hand since: those bounds become the ones to restore.
   const first = W.plan("leftHalf", tiled({ floating: true }), monitors, null, {})

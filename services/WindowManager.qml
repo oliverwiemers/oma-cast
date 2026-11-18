@@ -63,17 +63,13 @@ Item {
     Quickshell.execDetached(argv)
   }
 
-  // From the launcher, the window to act on is the one it covers. Hyprland
-  // gives that window focus back when the "omacast" layer unmaps, so wait
-  // (up to a second) for the layer to go; a global shortcut passes at once.
+  // No wait for the launcher to close: Hyprland keeps reporting the window
+  // under the "omacast" layer as active while it is open, and the layer stays
+  // in `hyprctl layers` after it hides, so it can't be waited on anyway.
   Process {
     id: query
     command: ["bash", "-c",
-      'for _ in $(seq 20); do'
-      + ' hyprctl layers -j 2>/dev/null | grep -q \'"namespace": *"omacast"\' || break;'
-      + ' sleep 0.05;'
-      + ' done;'
-      + ' w=$(hyprctl activewindow -j 2>/dev/null); m=$(hyprctl monitors -j 2>/dev/null);'
+      'w=$(hyprctl activewindow -j 2>/dev/null); m=$(hyprctl monitors -j 2>/dev/null);'
       + ' printf \'{"window":%s,"monitors":%s}\' "${w:-null}" "${m:-null}"']
     stdout: StdioCollector {
       onStreamFinished: service.apply(text)

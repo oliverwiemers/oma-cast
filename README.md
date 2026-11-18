@@ -207,6 +207,8 @@ Search for one by name (or type `window` to see them all), or bind it to a key a
 
 Hyprland only places floating windows, so a tiled window is floated first. **Restore** puts it back: a
 window that was tiled is tiled again, and one that was floating returns to its old position and size.
+A fullscreen or maximized window leaves that state to be placed, and Restore makes it fullscreen or
+maximized again.
 Pressing a half again cycles it through ½, ⅔ and ⅓, as in Raycast. Regions fill the monitor's work area, so
 they stay clear of the bar.
 
