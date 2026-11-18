@@ -530,6 +530,7 @@ Grammar: `{keyword opt="v" opt2='v' | modifier | modifier}`. Quotes accepted: `"
 - Restore keeps the pre-action bounds per window id in memory.
 - On Hyprland, tiled windows must first be made floating (`setfloating`) before pixel moves. Make this a setting ("Float window on WM action", default on), and also expose "Restore to tiling".
 - Layouts = saved lists of `{appId, workspace, monitorIndex, rect}` applied by launching missing apps, then placing windows.
+- **As built in the Quickshell plugin [D]:** the gaps are `screenGap` and `windowGap` in config.json. A tiled window is always floated (no setting yet), and "Restore to tiling" is what Restore does for a window that was tiled. Maximize fills the work area as a floating window instead of using Hyprland's maximized fullscreen state, so Restore and the other commands treat it like any placement. The "Top … Fourth" commands are rows and "Top/Bottom Center Two Thirds" are the centre two thirds of a half [I].
 
 ### 8.6 File search [O → D]
 - Index: crawl configured scopes (default `$HOME`) with the `ignore` crate (respects `.gitignore`, `.ignore`, `.rayignore`, plus default excludes `node_modules`, `.cache`, `.git`, `CACHEDIR.TAG`). Store paths in SQLite FTS5 (trigram), or use an `fst` map like Raycast's minidex [O].

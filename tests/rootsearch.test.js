@@ -198,3 +198,14 @@ test("actions: apps offer Open New Window on Shift+Enter", () => {
   const openNew = RS.actionsFor(app).find((a) => a.id === "open-new")
   assert.equal(openNew.shortcut, "Shift ↵")
 })
+
+test("Window Management commands are found by title, and stay out of the empty root", () => {
+  const WindowManagement = require("../core/WindowManagement.js")
+  const all = candidates().concat(WindowManagement.COMMANDS.map((c) => RS.builtinCandidate(WindowManagement.builtin(c))))
+  const found = RS.rootSections(all, "left half", ctx(), deps)
+  assert.equal(found[0].id, "results")
+  assert.equal(titles(found[0])[0], "Left Half")
+  assert.equal(titles(RS.rootSections(all, "almost max", ctx(), deps)[0])[0], "Almost Maximize")
+  const empty = RS.rootSections(all, "", ctx(), deps)
+  assert.ok(!empty.some((s) => titles(s).includes("Left Half")))
+})

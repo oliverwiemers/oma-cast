@@ -188,6 +188,46 @@ o.bind("SUPER + CTRL + T", "omacast switch theme", hl.dsp.global("omacast:theme"
 
 Pressing the key again closes it.
 
+## Window Management
+
+Raycast's Window Management commands place the focused window: **Left Half**, **Top Right Quarter**,
+**First Two Thirds**, **Bottom Center Sixth**, **Almost Maximize**, **Center** and the rest, 52 in all.
+Search for one by name (or type `window` to see them all), or bind it to a key and skip the launcher.
+
+| Group | Commands |
+|---|---|
+| Size | Maximize, Almost Maximize, Maximize Width, Maximize Height, Reasonable Size, Center, Center Half |
+| Halves | Left, Right, Top, Bottom |
+| Thirds | First / Center / Last Third, First / Center / Last Two Thirds, Top / Middle / Bottom Third, Top / Bottom Two Thirds, Top / Bottom Center Two Thirds |
+| Fourths | First / Second / Third / Last Fourth, First / Center / Last Three Fourths, Top First / Second / Third / Last Fourth, Top / Bottom Three Fourths |
+| Quarters | Top Left, Top Right, Bottom Left, Bottom Right |
+| Sixths | Top Left / Center / Right, Bottom Left / Center / Right |
+| Move | Move Left, Right, Top, Bottom (keeps the size) |
+| Restore | Back to where the window was before the first command |
+
+Hyprland only places floating windows, so a tiled window is floated first. **Restore** puts it back: a
+window that was tiled is tiled again, and one that was floating returns to its old position and size.
+Pressing a half again cycles it through ½, ⅔ and ⅓, as in Raycast. Regions fill the monitor's work area, so
+they stay clear of the bar.
+
+Every command has a global shortcut named after its title: `omacast:window-left-half`,
+`omacast:window-almost-maximize`, `omacast:window-first-two-thirds`. Bind the ones you use in
+`~/.config/hypr/omacast.lua`:
+
+```lua
+o.bind("CTRL + ALT + LEFT", "Left Half", hl.dsp.global("omacast:window-left-half"))
+o.bind("CTRL + ALT + RIGHT", "Right Half", hl.dsp.global("omacast:window-right-half"))
+o.bind("CTRL + ALT + G", "Almost Maximize", hl.dsp.global("omacast:window-almost-maximize"))
+o.bind("CTRL + ALT + D", "Center Three Fourths", hl.dsp.global("omacast:window-center-three-fourths"))
+o.bind("CTRL + ALT + BACKSPACE", "Restore", hl.dsp.global("omacast:window-restore"))
+```
+
+`omacast call windowManagement.getCommands` lists every command with its shortcut name. `screenGap` and
+`windowGap` in [`config.json`](#settings) add space around the screen edge and between placed windows.
+
+Not done yet: moving windows between displays and workspaces, exact Resize / Move Window, custom commands
+and layouts, and the grid overlay.
+
 ## Script Commands
 
 Executable scripts in `~/.config/omacast/script-commands/` become commands, using the same
@@ -259,6 +299,8 @@ as soon as you save; an unreadable file falls back to the defaults and logs a wa
 | `clipboardHistory` | `true` | `false` stops recording (the history stays) |
 | `clipboardHistoryDuration` | `"P1W"` | How long unpinned entries are kept |
 | `clipboardDisabledApplications` | password managers | Wayland app ids whose copies are never recorded |
+| `screenGap` | `0` | Pixels Window Management leaves around the screen edge |
+| `windowGap` | `0` | Pixels Window Management leaves between placed windows |
 | `logLevel` | `"info"` | How much omacast writes to the shell log |
 
 **General settings,** set through the CLI (it checks each value):
@@ -293,7 +335,8 @@ omacast build-search            # build the optional search helper (needs cargo)
 omacast install | uninstall
 ```
 
-Global shortcuts for Hyprland binds: `omacast:toggle`, `omacast:clipboard`, `omacast:emoji`, `omacast:theme`.
+Global shortcuts for Hyprland binds: `omacast:toggle`, `omacast:clipboard`, `omacast:emoji`, `omacast:theme`,
+and one `omacast:window-…` per [Window Management](#window-management) command.
 Bind them with `submap_universal = true` so they still work while omacast is open.
 
 ### Dependencies and network access
@@ -361,7 +404,8 @@ Later:
 - [ ] Quicklinks
 - [ ] Snippets and text expansion
 - [ ] Running Raycast extensions built from the open-source [`raycast/extensions`](https://github.com/raycast/extensions) repo
-- [ ] Window management and a window switcher
+- [ ] Window management: displays, workspaces, custom commands and layouts (placing the focused window works)
+- [ ] A window switcher
 - [ ] File search
 - [ ] Importing your `.rayconfig` from macOS
 

@@ -1,8 +1,10 @@
 import QtQuick
+import QtQml
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import qs.Commons
+import "core/WindowManagement.js" as WindowManagement
 import "ui"
 
 Item {
@@ -89,6 +91,7 @@ Item {
   Connections {
     target: backend
     function onNotification(method, data) {
+      if (method === "windowManagement.failed") { launcher.hud(data.title); return }
       if (method !== "scriptCommands.finished") return
       if (root.opened && data.mode !== "silent") launcher.showToast(data.style, data.title)
       else launcher.hud(data.title)
@@ -132,6 +135,19 @@ Item {
     name: "emoji"
     description: "Open omacast Emoji & Symbols"
     onPressed: root.run("builtin:emoji-picker")
+  }
+
+  // One per Window Management command, e.g. hl.dsp.global("omacast:window-left-half").
+  // They act on the focused window without opening the launcher.
+  Instantiator {
+    model: WindowManagement.COMMANDS
+    delegate: GlobalShortcut {
+      required property var modelData
+      appid: "omacast"
+      name: modelData.shortcut
+      description: "omacast " + modelData.title
+      onPressed: backend.callSync("windowManagement.run", { command: modelData.name })
+    }
   }
 
   IpcHandler {

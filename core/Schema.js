@@ -111,6 +111,10 @@ var configDefaults = {
   clipboardHistory: true,
   clipboardHistoryDuration: "P1W",
   // Wayland app ids whose copies are never recorded (SPEC §5.3 defaults).
+  // Window Management gaps in pixels, Raycast's outerGap and innerGap
+  // (ref 04 §1) [O]: around the screen edge, and between placed windows.
+  screenGap: 0,
+  windowGap: 0,
   clipboardDisabledApplications: ["org.keepassxc.KeePassXC", "Bitwarden", "1Password", "seahorse", "org.gnome.seahorse.Application"]
 }
 

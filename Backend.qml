@@ -17,6 +17,7 @@ import "core/ClipboardHistory.js" as ClipboardHistory
 import "core/Themes.js" as Themes
 import "core/Emoji.js" as Emoji
 import "core/ScriptCommands.js" as ScriptCommands
+import "core/WindowManagement.js" as WindowManagement
 import "services"
 
 Item {
@@ -114,6 +115,8 @@ Item {
     for (var i = 0; i < apps.length; i++) if (apps[i] && apps[i].id) next.push(RootSearch.appCandidate(apps[i]))
     next = next.concat(RootSearch.menuCandidates(menuSource.tree, menuSource.guards, menuSource.providerItems, backend.deps))
     for (var b = 0; b < RootSearch.BUILTINS.length; b++) next.push(RootSearch.builtinCandidate(RootSearch.BUILTINS[b]))
+    for (var w = 0; w < WindowManagement.COMMANDS.length; w++)
+      next.push(RootSearch.builtinCandidate(WindowManagement.builtin(WindowManagement.COMMANDS[w])))
     // A built-in that replaces an Omarchy command hides that command.
     var superseded = ({})
     RootSearch.BUILTINS.forEach(function(d) { (d.supersedes || []).forEach(function(id) { superseded[id] = true }) })
@@ -512,6 +515,10 @@ Item {
             return { close: true }
           }
           backend.recordVisit(id, query)
+          if (candidate.run.window) {
+            windowManager.run(candidate.run.window)
+            return { close: true }
+          }
           if (candidate.run.push && candidate.run.push.kind === "theme") themeSource.refresh()
           if (candidate.run.push) return { push: candidate.run.push }
           if (candidate.run.summon) backend.summonPlugin(candidate.run.summon, candidate.run.payload || "{}")
@@ -835,6 +842,19 @@ Item {
       }
     })
 
+    Rpc.register(backend.registry, "windowManagement", {
+      getCommands: function() {
+        return WindowManagement.COMMANDS.map(function(c) {
+          return { id: WindowManagement.builtin(c).id, name: c.name, title: c.title, shortcut: "omacast:" + c.shortcut }
+        })
+      },
+      run: function(data) {
+        var name = String(data && data.command || "")
+        if (!windowManager.run(name)) throw new Error("Unknown window command " + name)
+        return null
+      }
+    })
+
     Rpc.register(backend.registry, "frecency", {
       visit: function(data) { backend.recordVisit(String(data.id), String(data.query || "")); return null },
       get: function(data) {
@@ -905,6 +925,14 @@ Item {
   ScriptRunner {
     id: scriptRunner
     onFinished: function(command, result) { backend.emit("scriptCommands.finished", { mode: command.mode, style: result.style, title: result.title }) }
+  }
+
+  // A failed window command has no window to toast in, so Launcher.qml shows a HUD.
+  WindowManager {
+    id: windowManager
+    screenGap: backend.config.screenGap
+    windowGap: backend.config.windowGap
+    onFailed: function(message) { backend.emit("windowManagement.failed", { title: message }) }
   }
 
   AppFocuser {
