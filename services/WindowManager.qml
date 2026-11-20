@@ -39,6 +39,20 @@ Item {
     }
   }
 
+  // Height of the hyprbars title bar on this window, or 0. With a workspace
+  // tag set, hyprbars only draws on windows carrying that tag.
+  function titlebar(state) {
+    var bars = state.bars
+    if (!bars || !bars.enabled || !bars.enabled.int && !bars.enabled.bool) return 0
+    var height = bars.height && Number(bars.height.int) || 0
+    var tag = bars.tag && String(bars.tag.str || "") || ""
+    if (!tag) return height
+    var tags = state.window.tags || []
+    for (var i = 0; i < tags.length; i++)
+      if (String(tags[i]).replace(/\*$/, "") === tag) return height
+    return 0
+  }
+
   function apply(text) {
     var name = service.pending
     service.pending = ""
@@ -48,7 +62,7 @@ Item {
     if (!state || !state.window) { service.failed("Couldn't read the focused window"); return }
     var address = String(state.window.address || "")
     var plan = WindowManagement.plan(name, state.window, state.monitors, service.entries[address] || null,
-      { screenGap: service.screenGap, windowGap: service.windowGap })
+      { screenGap: service.screenGap, windowGap: service.windowGap, titlebar: service.titlebar(state) })
     if (plan.error) { service.failed(plan.error); return }
     service.remember(plan.address, plan.entry)
     // Only numbers and a window address reach argv. The Lua-config
@@ -70,7 +84,10 @@ Item {
     id: query
     command: ["bash", "-c",
       'w=$(hyprctl activewindow -j 2>/dev/null); m=$(hyprctl monitors -j 2>/dev/null);'
-      + ' printf \'{"window":%s,"monitors":%s}\' "${w:-null}" "${m:-null}"']
+      // hyprbars options; "no such option" (plugin not loaded) becomes null.
+      + ' o() { local v; v=$(hyprctl getoption "plugin:hyprbars:$1" -j 2>/dev/null); [[ $v == "{"* ]] && printf %s "$v" || printf null; };'
+      + ' printf \'{"window":%s,"monitors":%s,"bars":{"enabled":%s,"height":%s,"tag":%s}}\' "${w:-null}" "${m:-null}"'
+      + ' "$(o enabled)" "$(o bar_height)" "$(o workspace_tag)"']
     stdout: StdioCollector {
       onStreamFinished: service.apply(text)
     }

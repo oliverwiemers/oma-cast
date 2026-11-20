@@ -235,7 +235,11 @@ function pair(value) {
 //   win:      `hyprctl activewindow -j`
 //   monitors: `hyprctl monitors -j`
 //   entry:    what the last plan for this window returned as `entry`, or null
-//   options:  { screenGap, windowGap }
+//   options:  { screenGap, windowGap, titlebar }
+// `titlebar` is the height of a title bar drawn above the window, outside the
+// bounds Hyprland reports (hyprbars, which Omarchy puts on floating
+// workspaces). Placement works on the outer frame, bar included, so the bar
+// stays inside the target instead of overlapping the panel or a neighbour.
 // Returns { error } or { address, rect, dispatches, entry }. `entry` is the
 // window's new memory: the bounds Restore returns to, and the last command
 // for cycling. A tiled window is floated first, since Hyprland only places
@@ -279,7 +283,10 @@ function plan(name, win, monitors, entry, options) {
   // the bounds to restore stay the ones from before we first moved it.
   var untouched = !!entry && floating && !fullscreen && sameRect(current, entry.applied)
   var step = untouched && entry.command === name ? entry.step + 1 : 0
-  var rect = target(cmd, area, current, step, opts.windowGap)
+  var bar = Math.max(0, Math.round(Number(opts.titlebar) || 0))
+  var outer = { x: current.x, y: current.y - bar, w: current.w, h: current.h + bar }
+  var frame = target(cmd, area, outer, step, opts.windowGap)
+  var rect = frame && { x: frame.x, y: frame.y + bar, w: frame.w, h: frame.h - bar }
   if (!rect || rect.w <= 0 || rect.h <= 0) return { error: "No room on the monitor" }
 
   if (fullscreen) steps.push({ op: "unfullscreen", mode: mode })

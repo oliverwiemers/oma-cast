@@ -236,3 +236,11 @@ test("every command is a searchable built-in with its own shortcut name", () => 
   assert.equal(W.command("firstTwoThird").shortcut, "window-first-two-thirds")
   assert.ok(ids.has("builtin:window-management.leftHalf"))
 })
+
+test("a title bar drawn above the window stays inside the target", () => {
+  const p = W.plan("leftHalf", tiled(), monitors, null, { titlebar: 30 })
+  assert.deepEqual(p.rect, { x: 0, y: 70, w: 1280, h: 1370 })
+  const centre = W.plan("center", tiled({ floating: true }), monitors, null, { titlebar: 30 }).rect
+  assert.equal(centre.h, 600)
+  assert.equal(centre.y - 30 - area.y, area.y + area.h - (centre.y + centre.h))
+})
