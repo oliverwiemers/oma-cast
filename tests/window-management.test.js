@@ -244,3 +244,8 @@ test("a title bar drawn above the window stays inside the target", () => {
   assert.equal(centre.h, 600)
   assert.equal(centre.y - 30 - area.y, area.y + area.h - (centre.y + centre.h))
 })
+
+test("the border stays on the window's own monitor", () => {
+  const p = W.plan("maximize", tiled(), monitors, null, { titlebar: 30, border: 2 })
+  assert.deepEqual(p.rect, { x: 2, y: 72, w: 2556, h: 1366 })
+})

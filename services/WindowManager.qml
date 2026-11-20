@@ -62,7 +62,8 @@ Item {
     if (!state || !state.window) { service.failed("Couldn't read the focused window"); return }
     var address = String(state.window.address || "")
     var plan = WindowManagement.plan(name, state.window, state.monitors, service.entries[address] || null,
-      { screenGap: service.screenGap, windowGap: service.windowGap, titlebar: service.titlebar(state) })
+      { screenGap: service.screenGap, windowGap: service.windowGap, titlebar: service.titlebar(state),
+        border: state.border && Number(state.border.int) || 0 })
     if (plan.error) { service.failed(plan.error); return }
     service.remember(plan.address, plan.entry)
     // Only numbers and a window address reach argv. The Lua-config
@@ -86,7 +87,8 @@ Item {
       'w=$(hyprctl activewindow -j 2>/dev/null); m=$(hyprctl monitors -j 2>/dev/null);'
       // hyprbars options; "no such option" (plugin not loaded) becomes null.
       + ' o() { local v; v=$(hyprctl getoption "plugin:hyprbars:$1" -j 2>/dev/null); [[ $v == "{"* ]] && printf %s "$v" || printf null; };'
-      + ' printf \'{"window":%s,"monitors":%s,"bars":{"enabled":%s,"height":%s,"tag":%s}}\' "${w:-null}" "${m:-null}"'
+      + ' b=$(hyprctl getoption general:border_size -j 2>/dev/null); [[ $b == "{"* ]] || b=null;'
+      + ' printf \'{"window":%s,"monitors":%s,"border":%s,"bars":{"enabled":%s,"height":%s,"tag":%s}}\' "${w:-null}" "${m:-null}" "$b"'
       + ' "$(o enabled)" "$(o bar_height)" "$(o workspace_tag)"']
     stdout: StdioCollector {
       onStreamFinished: service.apply(text)
